@@ -1,0 +1,204 @@
+{% extends "employee_information/base.html" %}
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+    <div class="mdc-card py-2">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="card-title mb-0">Staff List</h4>
+            <div class="text-start">
+                <button class="mdc-button mdc-button--raised mdc-ripple-upgraded btn-sm" id="create_new"><i class="material-icons mdc-button__icon">add</i><span> Add New</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+    <div class="mdc-card">
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered" id="staff-table">
+                <colgroup>
+                    <col width="15%">
+                    <col width="15%">
+                    <col width="20%">
+                    <col width="20%">
+                    <col width="10%">
+                    <col width="10%">
+                    <col width="10%">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th class="text-center py-1">Employee Number</th>
+                        <th class="text-center py-1">Surname</th>
+                        <th class="text-center py-1">Other Names</th>
+                        <th class="text-center py-1">Date of Birth</th>
+                        <th class="text-center py-1">ID Photo</th>
+                        <th class="text-center py-1">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="staff-body">
+                    <!-- Data will be inserted dynamically here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+<script>
+    $('#create_new').click(function() {
+        uni_modal("Add New Employee", "{% url 'manage_employees-page' %}");  // Adjust this URL based on your URL configuration
+    });
+
+    $(document).ready(function() {
+        // Fetch staff list from API and render it in the table
+        fetchStaffList();
+
+        function fetchStaffList() {
+            $.ajax({
+                url: 'http://127.0.0.1:8000/staff_app/list_staff/',
+                method: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    renderStaffList(response);  // Call function to render data
+                },
+                error: function(xhr, status, error) {
+                    console.log("Error fetching staff list:", error);
+                }
+            });
+        }
+
+        function renderStaffList(staffList) {
+            var staffBody = $('#staff-body');
+            staffBody.empty();  // Clear existing data
+
+            // Iterate over the staff list and append rows to the table
+            staffList.forEach(function(staff) {
+                var staffRow = `
+                    <tr>
+                        <td class="px-2 py-1 text-center">${staff.employee_number}</td>
+                        <td class="px-2 py-1 text-start">${staff.surname}</td>
+                        <td class="px-2 py-1 text-start">${staff.other_names}</td>
+                        <td class="px-2 py-1 text-start">${new Date(staff.date_of_birth).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                        <td class="px-2 py-1 text-center">
+                            ${staff.id_photo ? `<img src="data:image/jpeg;base64,${staff.id_photo}" alt="ID Photo" class="img-thumbnail" width="50">` : '<p>No photo</p>'}
+                        </td>
+                        <td class="px-2 py-1 text-center">
+                            <button class="mdc-button mdc-button--raised p-1 icon-button mdc-ripple-upgraded view-data" type="button" data-id="${staff.employee_number}" title="View Details">
+                                <i class="material-icons mdc-button__icon">visibility</i>
+                            </button>
+                            <button class="mdc-button mdc-button--raised p-1 icon-button filled-button--light mdc-ripple-upgraded edit-data" type="button" data-id="${staff.employee_number}" title="Edit">
+                                <i class="material-icons mdc-button__icon">edit</i>
+                            </button>
+                            <button class="mdc-button mdc-button--raised p-1 icon-button filled-button--danger mdc-ripple-upgraded delete-data" type="button" data-id="${staff.employee_number}" title="Delete">
+                                <i class="material-icons mdc-button__icon">delete_outline</i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                staffBody.append(staffRow);  // Append the row to the table body
+            });
+
+            // Bind click events after dynamically adding buttons
+            bindStaffActions();
+        }
+
+        // Function to bind actions to dynamically created buttons
+        function bindStaffActions() {
+            // View staff details
+            $('.view-data').click(function() {
+                var employee_number = $(this).attr('data-id');
+                var url = "/staff_app/" + employee_number + "/";
+                uni_modal("Staff Details", url, 'mid-large');
+            });
+
+            // Edit staff details
+            $('.edit-data').click(function() {
+                var employee_number = $(this).attr('data-id');
+                var url = "/staff_app/" + employee_number + "/";
+                uni_modal("Edit Staff", url, 'modal-lg');
+            });
+
+            function update_staff(employee_number) {
+                var formData = new FormData();
+                var dateOfBirth = $('#date_of_birth').val();  // Assuming you have a date input
+                var idPhoto = $('#id_photo')[0].files[0];  // Assuming a file input for id_photo
+
+                formData.append('date_of_birth', dateOfBirth);  // Append date of birth to form data
+                if (idPhoto) {
+                    formData.append('id_photo', idPhoto);  // Append the photo if available
+                }
+
+                $.ajax({
+                    url: '/staff_app/' + employee_number + '/',  // API endpoint for updating
+                    method: 'PUT',  // Use PUT method for updates
+                    headers: {
+                        "X-CSRFToken": '{{ csrf_token }}'  // Ensure CSRF token for security
+                    },
+                    data: formData,
+                    processData: false,  // Do not process the data
+                    contentType: false,  // Do not set content type (let FormData handle it)
+                    success: function(resp) {
+                        if (resp.status === 'success') {
+                            alert_toast("Staff updated successfully!", 'success');
+                            location.reload();  // Reload the page after a successful update
+                        } else {
+                            alert_toast("An error occurred while updating staff.", 'error');
+                        }
+                    },
+                    error: function(err) {
+                        console.log(err);
+                        alert_toast("An error occurred.", 'error');
+                    }
+                });
+            }
+
+            // Delete staff
+            $('.delete-data').click(function() {
+                var employee_number = $(this).attr('data-id');
+                var deleteUrl = 'http://127.0.0.1:8000/staff_app/' + employee_number + '/';  // API endpoint for deleting staff
+                
+                // Ensure _conf gets the correct callback function
+                // _conf("Are you sure you want to delete this staff?", function() {
+                //     delete_staff(deleteUrl);  // Now this will be called after confirmation
+                // });
+                if (confirm("Are you sure you want to delete this staff?")) {
+                    delete_staff(deleteUrl);  // Now this will be called after confirmation
+                }
+            });
+        }
+
+        function delete_staff(deleteUrl) {
+            // start_loader();  
+            $.ajax({
+                headers: {
+                    "X-CSRFToken": '{{ csrf_token }}'  // CSRF token for authentication (if required)
+                },
+                url: deleteUrl,
+                method: "DELETE",
+                dataType: "json",  // Expecting JSON, but we handle 204 status
+                error: function(err) {
+                    console.log(err);
+                    alert_toast("An error occurred", 'error');
+                    end_loader();  // Stop loader in case of error
+                },
+                success: function(resp, textStatus, xhr) {
+                    // Check if the status code is 204 (no content), meaning the delete was successful
+                    if (xhr.status === 204) {
+                        alert_toast("Staff successfully deleted!", 'success');
+                        setTimeout(function() {
+                            location.reload();  // Reload the page after 2 seconds
+                        }, 2000);
+                    } else if (typeof resp === 'object' && resp.status === 'success') {
+                        alert_toast("Staff successfully deleted!", 'success');
+                        setTimeout(function() {
+                            location.reload();  // Reload the page after 2 seconds
+                        }, 2000);
+                    } else {
+                        alert_toast("An error occurred", 'error');
+                    }
+                    end_loader();  // Stop loader after successful or failed request
+                }
+            });
+        }
+    });
+</script>
+{% endblock ScriptBlock %}

@@ -1,0 +1,73 @@
+<div class="container-fluid">
+    <form action="http://127.0.0.1:8000/staff_app/" method="POST" id="staff-form" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group mb-3">
+                    <label for="code" class="control-label">Unique Code (10 digits)</label>
+                    <input type="text" name="code" id="code" class="form-control form-control-sm rounded-0" value="" required>
+                </div>
+                <div class="form-group mb-3">
+                    <label for="surname" class="control-label">Surname</label>
+                    <input type="text" name="surname" id="surname" class="form-control form-control-sm rounded-0" value="" required>
+                </div>
+                <div class="form-group mb-3">
+                    <label for="other_names" class="control-label">Other Names</label>
+                    <input type="text" name="other_names" id="other_names" class="form-control form-control-sm rounded-0" value="" required>
+                </div>
+                <div class="form-group mb-3">
+                    <label for="date_of_birth" class="control-label">Date of Birth</label>
+                    <input type="date" name="date_of_birth" id="date_of_birth" class="form-control form-control-sm rounded-0" value="" required>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="form-group mb-3">
+                    <label for="id_photo" class="control-label">ID Photo</label>
+                    <input type="file" name="id_photo" id="id_photo" class="form-control form-control-sm rounded-0" accept="image/*">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group mb-3">
+            <button type="submit" class="btn btn-primary btn-sm">Submit</button>
+        </div>
+    </form>
+</div>
+
+<script>
+   $(document).ready(function() {
+    // Handle form submission
+    $('#staff-form').submit(function(e) {
+        e.preventDefault();  // Prevent default form submission
+        const form = this;
+        const formData = new FormData(form);
+
+        $.ajax({
+            headers: {
+                "X-CSRFToken": '{{ csrf_token }}',  // Ensure CSRF token is included for security
+            },
+            url: 'http://127.0.0.1:8000/staff_app/',  // API endpoint for staff registration
+            method: 'POST',  // POST request for adding new staff
+            data: formData,
+            cache: false,
+            contentType: false,
+            processData: false,
+            success: function(response) {
+                console.log(response);  // Log the response for debugging
+
+                if (response.status === 'success') {
+                    alert('New staff created successfully');
+                    location.reload();  // Reload the page
+                } else {
+                    // Log and display any errors from the response
+                    alert('Failed to create new staff: ' + JSON.stringify(response.errors));
+                }
+            },
+            error: function(xhr, status, error) {
+                alert("An error occurred: " + error);
+            }
+        });
+    });
+    });
+</script>
